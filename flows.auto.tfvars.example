@@ -1,0 +1,30 @@
+# Add MediaConnect flow definitions here.
+mediaconnect_flows = {
+  "flow-01" = {
+    description       = ""
+    availability_zone = ""
+    subnet_key        = ""
+
+    source = {
+      name          = ""
+      description   = ""
+      protocol      = ""
+      ingest_port   = 0
+      whitelist_cidr = ""
+      max_latency   = 0
+    }
+
+    outputs = [
+      {
+        name              = ""
+        description       = ""
+        protocol          = ""
+        destination       = ""
+        port              = 0
+        max_latency       = 0
+        smoothing_latency = 0
+        vpc_interface_name = ""
+      }
+    ]
+  } 
+}

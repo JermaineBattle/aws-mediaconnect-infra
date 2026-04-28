@@ -1,0 +1,35 @@
+# General Configuration
+aws_region   = ""
+environment  = "dev"
+project_name = ""
+
+# VPC Configuration
+vpc_cidr = ""
+
+public_subnets = {
+  "subnet-1" = {
+    cidr = ""
+    az   = ""
+  }
+  "subnet-2" = {
+    cidr = ""
+    az   = ""
+  }
+  # Add more subnets as needed:
+  # "subnet-3" = {
+  #   cidr = ""
+  #   az   = ""
+  # }
+}
+
+# Optional: Private subnets for future use
+# private_subnets = {
+#   "private-1" = {
+#     cidr = ""
+#     az   = ""
+#   }
+# }
+
+# Security: CIDR block allowed to send streams to MediaConnect
+# Use 0.0.0.0/0 for testing, restrict in production
+allowed_inbound_cidr = "0.0.0.0/0"
