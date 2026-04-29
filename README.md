@@ -10,7 +10,9 @@ Production-ready Infrastructure as Code for AWS MediaConnect using OpenTofu - VP
 ✅ **Dynamic & Scalable** - Add unlimited flows and outputs via configuration files  
 ✅ **Multi-Protocol** - NDI, RTP, RTMP, SRT, Zixi support  
 ✅ **Proper Cleanup** - ENIs automatically cleaned up, no orphaned resources  
-✅ **Production Ready** - IAM propagation handling, error recovery, clean destroy  
+✅ **Production Ready** - IAM propagation handling, error recovery, clean destroy 
+
+As of today (4/29/2026), I could not find support from the awscc library for the NDI source addition for MediaConnect. To resolve this issue, I used a combination of awscc for initial flow creation, then finished the configuration with aws-cli.
 
 ## Prerequisites
 
