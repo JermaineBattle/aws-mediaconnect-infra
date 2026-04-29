@@ -9,20 +9,18 @@ output "environment" {
 }
 
 output "vpc_id" {
-  description = "VPC ID"
-  value       = aws_vpc.main.id
+  description = "VPC ID (either existing or newly created)"
+  value       = local.vpc_id
 }
 
 output "vpc_cidr" {
   description = "VPC CIDR block"
-  value       = aws_vpc.main.cidr_block
+  value       = var.use_existing_vpc ? data.aws_vpc.existing[0].cidr_block : aws_vpc.main[0].cidr_block
 }
 
-output "public_subnet_ids" {
-  description = "Public subnet IDs"
-  value = {
-    for key, subnet in aws_subnet.public : key => subnet.id
-  }
+output "subnet_ids" {
+  description = "Subnet IDs used for MediaConnect (either existing or newly created)"
+  value       = local.subnet_ids
 }
 
 output "security_group_id" {

@@ -18,7 +18,7 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project     = "aws-mediaconnect-infra"
+      Project     = "aws-interoperability-event"
       ManagedBy   = "OpenTofu"
       Environment = var.environment
     }

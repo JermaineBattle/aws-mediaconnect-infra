@@ -1,9 +1,31 @@
+################################################################################
+# MODE SELECTION
+################################################################################
+# Set this to true to use an existing VPC, false to create a new one
+use_existing_vpc = false
+
+################################################################################
 # General Configuration
+################################################################################
 aws_region   = ""
-environment  = "dev"
+environment  = ""
 project_name = ""
 
-# VPC Configuration
+################################################################################
+# Option 1: EXISTING VPC Configuration (use_existing_vpc = true)
+################################################################################
+# Uncomment and fill these in if using an existing VPC:
+# existing_vpc_id = ""
+#
+# existing_subnet_ids = {
+#   "subnet-1" = ""
+#   "subnet-2" = ""
+# }
+
+################################################################################
+# Option 2: NEW VPC Configuration (use_existing_vpc = false)
+################################################################################
+# Only used when creating a new VPC:
 vpc_cidr = ""
 
 public_subnets = {
@@ -30,6 +52,9 @@ public_subnets = {
 #   }
 # }
 
-# Security: CIDR block allowed to send streams to MediaConnect
+################################################################################
+# Security Configuration (applies to both modes)
+################################################################################
+# CIDR block allowed to send streams to MediaConnect
 # Use 0.0.0.0/0 for testing, restrict in production
-allowed_inbound_cidr = "0.0.0.0/0"
+allowed_inbound_cidr = ""

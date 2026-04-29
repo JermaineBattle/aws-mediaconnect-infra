@@ -1,6 +1,16 @@
-# MediaConnect Infrastructure - OpenTofu Project
+# MediaConnect Interoperability - OpenTofu Project
 
-Infrastructure as Code for AWS MediaConnect using OpenTofu - VPC-based deployment with dynamic, scalable flow management.
+Production-ready Infrastructure as Code for AWS MediaConnect using OpenTofu - VPC-based deployment with full NDI support and dynamic, scalable flow management.
+
+## Features
+
+✅ **Full NDI Support** - NDI sources with discovery server integration and automatic source selection  
+✅ **Dual VPC Mode** - Create new VPC or use existing VPC infrastructure  
+✅ **Auto Lifecycle** - Flows automatically start on creation and stop before deletion  
+✅ **Dynamic & Scalable** - Add unlimited flows and outputs via configuration files  
+✅ **Multi-Protocol** - NDI, RTP, RTMP, SRT, Zixi support  
+✅ **Proper Cleanup** - ENIs automatically cleaned up, no orphaned resources  
+✅ **Production Ready** - IAM propagation handling, error recovery, clean destroy  
 
 ## Prerequisites
 
@@ -12,232 +22,387 @@ Infrastructure as Code for AWS MediaConnect using OpenTofu - VPC-based deploymen
 
 ```
 .
-├── main.tf                    # Main configuration and provider setup
-├── variables.tf               # Input variables and flow structure definitions
-├── vpc.tf                     # VPC, subnets, security groups
-├── iam.tf                     # IAM roles for MediaConnect VPC access
-├── mediaconnect.tf            # MediaConnect flows, VPC interfaces, outputs
-├── outputs.tf                 # Output values (VPC info, flow details, IPs)
-├── flows.auto.tfvars          # Flow configurations (dynamically scalable)
-├── terraform.tfvars.example   # Example variable values
-└── README.md                  # This file
+├── main.tf                       # Provider configuration (aws + awscc)
+├── variables.tf                  # Variable definitions and type structures
+├── vpc.tf                        # VPC infrastructure (new or existing)
+├── iam.tf                        # IAM roles for MediaConnect VPC access
+├── mediaconnect.tf               # MediaConnect flows (Terraform + AWS CLI)
+├── outputs.tf                    # Output values (VPC info, flow details)
+├── terraform.tfvars.example      # VPC configuration template
+├── flows.auto.tfvars.example     # Flow configuration template
+└── README.md                     # This file
 ```
 
 ## Architecture
 
 This setup creates a **VPC-based MediaConnect deployment**:
 
-- **VPC**: Dedicated VPC with public subnets across multiple AZs
-- **MediaConnect Flows**: Each flow has a VPC interface (ENI) in your VPC
-- **Security**: Security groups control inbound/outbound traffic
-- **Scalability**: Add unlimited flows and outputs by editing configuration
-
 ### VPC Architecture
-
 ```
-VPC (10.0.0.0/16)
-├── Public Subnet 1 (10.0.1.0/24) - us-east-1a
-│   └── MediaConnect VPC Interface(s)
-├── Public Subnet 2 (10.0.2.0/24) - us-east-1b
-│   └── MediaConnect VPC Interface(s)
-└── Internet Gateway
+VPC (Existing or New)
+├── Public Subnet 1 (us-east-1a)
+│   └── MediaConnect VPC Interface(s) → ENI
+├── Public Subnet 2 (us-east-1b)
+│   └── MediaConnect VPC Interface(s) → ENI
+├── Internet Gateway
+└── Security Groups (MediaConnect protocols)
 ```
 
-## Getting Started
+### Flow Lifecycle
+```
+tofu apply:
+  1. Create VPC infrastructure (or use existing)
+  2. Create IAM roles
+  3. Wait 15s for IAM propagation
+  4. Create MediaConnect flows
+  5. Start flows (ACTIVE)
+  6. Create outputs
 
-### 1. Copy the example variables file:
+tofu destroy:
+  1. Stop flows (STANDBY)
+  2. Wait for stop to complete
+  3. Delete flows
+  4. Find and delete ENIs
+  5. Delete security groups
+  6. Delete VPC resources (if created)
+```
+
+## Quick Start
+
+### 1. Copy Configuration Templates
 
 ```bash
 cp terraform.tfvars.example terraform.tfvars
+cp flows.auto.tfvars.example flows.auto.tfvars
 ```
 
-### 2. Edit `terraform.tfvars` to configure VPC settings
+### 2. Configure VPC Settings
 
-Review and customize:
+Edit `terraform.tfvars`:
 
-- VPC CIDR block
-- Public subnets (CIDR and availability zones)
-- Allowed inbound CIDR for security
-
-### 3. Edit `flows.auto.tfvars` to configure your flows
-
-See the examples in the file - each flow needs:
-
-- A `subnet_key` to place the VPC interface
-- Source configuration (protocol, port, etc.)
-- List of outputs
-
-### 4. Initialize OpenTofu:
-
-```bash
-tofu init
-```
-
-### 5. Plan the infrastructure:
-
-```bash
-tofu plan
-```
-
-### 6. Apply the infrastructure:
-
-```bash
-tofu apply
-```
-
-## Adding Flows, Inputs, and Outputs
-
-The infrastructure is fully dynamic! Just edit `flows.auto.tfvars` to add/remove flows.
-
-### Example: Add a New VPC-based Flow
-
+**Option A - Use Existing VPC:**
 ```hcl
-mediaconnect_flows = {
-  "my-new-flow" = {
-    description       = "Description of my flow"
-    availability_zone = "us-east-1a"
-    subnet_key        = "subnet-1"  # Which public subnet to use
+use_existing_vpc = true
+aws_region       = "us-east-1"
+environment      = "prod"
+project_name     = "my-mediaconnect"
 
-    source = {
-      name           = "my-source"
-      description    = "My input source"
-      protocol       = "rtmp"        # or "srt-caller", "srt-listener", "rtp"
-      ingest_port    = 1935
-      whitelist_cidr = "0.0.0.0/0"
-      max_latency    = 2000
-    }
-
-    outputs = [
-      {
-        name               = "output-1"
-        description        = "First output"
-        protocol           = "srt-listener"
-        destination        = "10.0.1.100"  # Private IP in VPC
-        port               = 5000
-        vpc_interface_name = "my-new-flow-vpc-interface"
-      },
-      {
-        name               = "output-2"
-        description        = "Second output"
-        protocol           = "rtp"
-        destination        = "10.0.1.101"  # Private IP in VPC
-        port               = 5004
-        vpc_interface_name = "my-new-flow-vpc-interface"
-      }
-      # Add as many outputs as needed!
-    ]
-  }
-
-  # Add more flows by adding another block!
+existing_vpc_id = "vpc-abc123"
+existing_subnet_ids = {
+  "subnet-1" = "subnet-abc123"
+  "subnet-2" = "subnet-def456"
 }
+
+allowed_inbound_cidr = "10.0.0.0/8"
 ```
 
-### Supported Protocols
-
-**Source Protocols:**
-
-- `rtmp` - RTMP push
-- `srt-caller` - SRT caller mode
-- `srt-listener` - SRT listener mode
-- `rtp` - RTP
-- `zixi-push` - Zixi push
-
-**Output Protocols:**
-
-- `srt-listener` - SRT listener
-- `srt-caller` - SRT caller
-- `rtp` - RTP
-- `rtp-fec` - RTP with FEC
-- `zixi-push` - Zixi push
-- `zixi-pull` - Zixi pull
-
-## VPC Configuration
-
-Configure your VPC in `terraform.tfvars`:
-
-- **VPC CIDR**: Default `10.0.0.0/16`
-- **Public Subnets**: Default includes 2 subnets across different AZs
-  - `subnet-1`: `10.0.1.0/24` in `us-east-1a`
-  - `subnet-2`: `10.0.2.0/24` in `us-east-1b`
-
-### Add More Subnets
-
-Edit `terraform.tfvars` to add more subnets:
-
+**Option B - Create New VPC:**
 ```hcl
+use_existing_vpc = false
+aws_region       = "us-east-1"
+environment      = "prod"
+project_name     = "my-mediaconnect"
+
+vpc_cidr = "10.0.0.0/16"
 public_subnets = {
   "subnet-1" = { cidr = "10.0.1.0/24", az = "us-east-1a" }
   "subnet-2" = { cidr = "10.0.2.0/24", az = "us-east-1b" }
-  "subnet-3" = { cidr = "10.0.3.0/24", az = "us-east-1c" }  # Add more!
+}
+
+allowed_inbound_cidr = "0.0.0.0/0"
+```
+
+### 3. Configure MediaConnect Flows
+
+Edit `flows.auto.tfvars`:
+
+**NDI Flow Example:**
+```hcl
+mediaconnect_flows = {
+  "ndi-flow-01" = {
+    description       = "Production NDI flow"
+    availability_zone = "us-east-1a"
+    subnet_key        = "subnet-1"
+    flow_size         = "LARGE"
+
+    source = {
+      name               = "ndi-source-main"
+      description        = "Primary NDI source"
+      protocol           = "ndi-speed-hq"
+      vpc_interface_name = "ndi-flow-01-vpc-interface"
+      ndi_source_name    = "ENCODER-01 (Camera 1)"
+    }
+
+    ndi_config = {
+      ndi_state    = "ENABLED"
+      machine_name = null
+      ndi_discovery_servers = [{
+        discovery_server_address = "10.20.2.56"
+        discovery_server_port    = 5959
+        vpc_interface_adapter    = "ndi-flow-01-vpc-interface"
+      }]
+    }
+
+    encoding_config = {
+      encoding_profile  = "DISTRIBUTION_H264_DEFAULT"
+      video_max_bitrate = 20000000
+    }
+
+    outputs = [{
+      name               = "srt-output-01"
+      description        = "SRT distribution"
+      protocol           = "srt-listener"
+      port               = 5001
+      vpc_interface_name = "ndi-flow-01-vpc-interface"
+    }]
+  }
 }
 ```
 
-## Security Groups
+### 4. Deploy
 
-The security group allows:
+```bash
+# Initialize OpenTofu
+tofu init
 
+# Preview changes
+tofu plan
+
+# Deploy infrastructure
+tofu apply
+```
+
+### 5. Get Flow Information
+
+```bash
+# View all outputs
+tofu output
+
+# View specific flow details
+tofu output flows
+
+# View VPC information
+tofu output vpc_id
+```
+
+## Flow Types
+
+### NDI Flows (via AWS CLI)
+
+**Features:**
+- Full NDI discovery server integration
+- NDI source name selection
+- Flow size: LARGE (required)
+- Automatic encoding configuration
+- Auto-start on creation
+
+**Configuration:**
+```hcl
+protocol = "ndi-speed-hq"
+ndi_source_name = "YOUR-NDI-SOURCE-NAME"
+ndi_config = { ... }
+encoding_config = { ... }
+```
+
+### Standard Flows (via Terraform)
+
+**Supported Protocols:**
+- RTP
+- RTMP  
+- SRT (caller/listener)
+- Zixi (push/pull)
+
+**Configuration:**
+```hcl
+protocol = "rtp"  # or "rtmp", "srt-listener", etc.
+ingest_port = 5004
+max_latency = 2000
+```
+
+## Output Protocols
+
+### SRT Listener
+```hcl
+protocol    = "srt-listener"
+port        = 5001
+# No destination - listens for incoming connections
+```
+
+### SRT Caller
+```hcl
+protocol    = "srt-caller"
+destination = "192.168.1.100"
+port        = 5001
+```
+
+### RTP
+```hcl
+protocol    = "rtp"
+destination = "224.0.0.1"
+port        = 5004
+```
+
+## Scaling
+
+Add flows by adding blocks to `flows.auto.tfvars`:
+
+```hcl
+mediaconnect_flows = {
+  "flow-01" = { ... }
+  "flow-02" = { ... }
+  "flow-03" = { ... }
+  # Add as many as needed
+}
+```
+
+Each flow can have unlimited outputs:
+```hcl
+outputs = [
+  { name = "output-1", ... },
+  { name = "output-2", ... },
+  { name = "output-3", ... },
+  # Add as many as needed
+]
+```
+
+## Security
+
+### Security Groups
+
+Automatically created with rules for:
 - **RTMP**: TCP 1935
 - **SRT**: UDP 5000-5999
 - **RTP**: UDP 5004-5005
 - **Zixi**: UDP 2088-2089
 - **All outbound** traffic
 
-Modify `vpc.tf` to adjust security rules.
+Restrict `allowed_inbound_cidr` in production.
 
-## Scaling
+### IAM Roles
 
-The infrastructure automatically scales based on what you define in `flows.auto.tfvars`:
+Automatically created with permissions for:
+- Create/delete network interfaces
+- Describe VPC resources
+- Attach to MediaConnect flows
 
-- Want 1 flow with 10 outputs? Just add 10 output blocks
-- Want 50 flows? Just add 50 flow blocks
-- Each flow automatically gets its own VPC interface
-- No code changes needed - just add to the configuration!
+### Encryption
 
-## Output Information
+Optional per-output encryption:
+```hcl
+encryption = {
+  encryption_key_type = "static-key"
+  automatic           = "ENABLED"
+}
+```
 
-After applying, you'll get:
-
-- **VPC details**: VPC ID, CIDR, subnet IDs
-- **Flow details**: ARNs, IDs, status, ingest IPs
-- **VPC interfaces**: ENI IDs for each flow
-- **Security group ID**
-
-View outputs:
-
-```bash
-tofu output
-
-# Get just flow info
-tofu output flows
-
-# Get VPC info
-tofu output vpc_id
+Or use AWS Secrets Manager:
+```hcl
+encryption = {
+  encryption_key_type = "static-key"
+  secrets_manager = {
+    role_arn   = "arn:aws:iam::..."
+    secret_arn = "arn:aws:secretsmanager:..."
+  }
+}
 ```
 
 ## Important Notes
 
-### VPC vs Public Internet Flows
+### NDI Configuration
 
-This setup uses **VPC interfaces**, which means:
+**NDI Source Name:** Must match exactly as it appears on the network
+- Format: `HOSTNAME (Source Name)`
+- Example: `ENCODER-01 (Camera 1)`
+- Check your NDI discovery server for available sources
 
-- ✅ Flows are inside your VPC (private networking)
-- ✅ Better security and control
-- ✅ Can communicate with other VPC resources
-- ❌ Requires VPC setup (this project handles it)
-- ❌ Uses ENIs (counts against ENI limits)
+**NDI Discovery Server:** Must be reachable from the VPC subnet
+- Configure IP and port
+- Default port: 5959
 
-### IAM Permissions
+### Flow Size
 
-The setup automatically creates an IAM role that allows MediaConnect to:
+- **MEDIUM**: Up to 50 transport streams, 400 Mbps aggregate (1.25 Gbps)
+- **LARGE**: NDI sources, high-quality, 1080p60, 2.5 Gbps throughput
+- **LARGE_4X**: Enhanced processing power, optimized for CDI workflows
 
-- Create and manage network interfaces in your VPC
-- Access the specified subnets and security groups
+### Port Requirements
 
-### Cost Considerations
+- Flow-level ports must be unique within each flow
+- SRT Listener outputs don't specify `destination`
+- Avoid using reserved ports (2077, 2088 for specific protocols)
 
-- MediaConnect charges per flow and data transfer
-- VPC interfaces (ENIs) have no additional cost
-- NAT Gateways (if you add private subnets with NAT) have hourly charges
+### IAM Propagation
+
+The setup includes a 15-second wait after IAM role creation to allow AWS to propagate the role across all services. This prevents "unable to assume role" errors on first apply.
+
+### ENI Cleanup
+
+On destroy, the process:
+1. Stops all flows
+2. Deletes flows  
+3. Waits for ENI detachment
+4. Explicitly deletes ENIs
+5. Then deletes security groups and VPC
+
+This ensures clean teardown with no orphaned resources.
+
+## Outputs
+
+After deployment, you'll see:
+
+```hcl
+flows = {
+  "ndi-flow-01" = {
+    arn              = "arn:aws:mediaconnect:..."
+    name             = "mediaconnect-interop-ndi-flow-01-prod"
+    status           = "ACTIVE"
+    source_ingest_ip = "54.123.45.67"  # Use this to send streams
+    vpc_interface_eni_ids = ["eni-abc123"]
+  }
+}
+```
+
+The `source_ingest_ip` is where you send your video streams.
+
+## Troubleshooting
+
+### Flow Creation Fails with IAM Error
+
+**Symptom:** "Unable to assume role" error on first apply  
+**Cause:** IAM propagation delay  
+**Solution:** Already handled with automatic 15-second wait. If it still fails, run `tofu apply` again.
+
+### Destroy Fails with Security Group Error
+
+**Symptom:** "security group has a dependent object"  
+**Cause:** ENI not fully detached  
+**Solution:** Already handled with automatic ENI cleanup. If it persists, manually delete ENIs in AWS Console.
+
+### NDI Source Not Found
+
+**Symptom:** Flow created but no NDI source visible  
+**Cause:** NDI source name mismatch or discovery server not reachable  
+**Solution:** 
+- Verify NDI source name matches exactly (case-sensitive)
+- Check discovery server IP is reachable from VPC subnet
+- Verify discovery server is running
+
+### Flow Won't Start
+
+**Symptom:** Flow status stuck in STANDBY  
+**Cause:** VPC configuration or source issues  
+**Solution:**
+- Check security group allows required ports
+- Verify subnet routing to internet gateway
+- Check NDI discovery server connectivity
+
+## Cost Considerations
+
+- **MediaConnect Flows**: Per-flow hourly charge + data transfer
+- **VPC**: No charge for VPC itself
+- **ENIs**: No additional charge
+- **Data Transfer**: Standard AWS data transfer rates apply
+- **NAT Gateway**: If you add private subnets with NAT, hourly charge applies
 
 ## Clean Up
 
@@ -247,37 +412,21 @@ To destroy all resources:
 tofu destroy
 ```
 
-**Warning**: This will delete:
+This will:
+1. Stop all flows
+2. Delete all flows (waits for completion)
+3. Delete all ENIs
+4. Delete security groups
+5. Delete VPC resources (if created)
 
-- All MediaConnect flows and outputs
-- VPC interfaces
-- The VPC and all subnets
-- Security groups
-- IAM roles
+**Note:** Actual `terraform.tfvars` and `flows.auto.tfvars` are gitignored - your sensitive data stays local.
 
-## Troubleshooting
+## Support
 
-### Flow won't start
+- AWS MediaConnect Documentation: https://docs.aws.amazon.com/mediaconnect/
+- OpenTofu Documentation: https://opentofu.org/docs/
+- NDI Documentation: https://ndi.video/
 
-- Check security group rules allow your source IP
-- Verify the subnet has internet gateway routing
-- Check IAM role has correct permissions
+## License
 
-### Can't reach outputs
-
-- Ensure destination IPs are reachable from the VPC
-- Check VPC routing tables
-- Verify output security group rules
-
-### VPC interface creation fails
-
-- Check IAM role permissions
-- Verify subnet has available IPs
-- Ensure you're within ENI limits for your account
-
-## Next Steps
-
-1. **Configure your video encoder** with the source ingest IP (from `tofu output flows`)
-2. **Set up monitoring** - Consider adding CloudWatch alarms
-3. **Add CloudWatch Logs** - Enable flow logging for troubleshooting
-4. **Consider encryption** - Add encryption blocks to outputs if needed
+This infrastructure code is provided as-is for use with AWS MediaConnect.

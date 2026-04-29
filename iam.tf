@@ -43,3 +43,10 @@ resource "aws_iam_role_policy" "mediaconnect_vpc" {
     ]
   })
 }
+
+# Wait for IAM role to propagate across AWS
+resource "time_sleep" "wait_for_iam" {
+  depends_on = [aws_iam_role.mediaconnect, aws_iam_role_policy.mediaconnect_vpc]
+
+  create_duration = "15s"
+}
