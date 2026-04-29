@@ -1,4 +1,4 @@
-# MediaConnect Interoperability - OpenTofu Project
+# MediaConnect Infrastructure Build - OpenTofu Project
 
 Production-ready Infrastructure as Code for AWS MediaConnect using OpenTofu - VPC-based deployment with full NDI support and dynamic, scalable flow management.
 
